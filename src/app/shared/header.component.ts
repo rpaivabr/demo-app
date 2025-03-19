@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatToolbar } from '@angular/material/toolbar';
@@ -16,7 +16,7 @@ export type ThemeIcon = typeof themeIcons[number];
       <span>Demo App</span>
       <span class="spacer"></span>
       <button (click)="handleClick()" mat-icon-button aria-label="Toggle theme icon-button with light/dark icon">
-        <mat-icon>{{ themeIcon }}</mat-icon>
+        <mat-icon>{{ themeIcon() }}</mat-icon>
       </button>
     </mat-toolbar>
     </header>
@@ -26,12 +26,9 @@ export type ThemeIcon = typeof themeIcons[number];
   `,
 })
 export class HeaderComponent {
-  @Input() theme: Theme = 'light';
-  @Output() toggle = new EventEmitter<void>();
-
-  get themeIcon(): ThemeIcon {
-    return this.theme === 'light' ? 'light_mode' : 'dark_mode';
-  }
+  theme = input<Theme>('light');
+  toggle = output<void>();
+  themeIcon = computed(() => (this.theme() === 'light' ? 'light_mode' : 'dark_mode'));
 
   handleClick(): void {
     this.toggle.emit();

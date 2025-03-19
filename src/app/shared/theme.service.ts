@@ -1,6 +1,5 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Signal, signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { BehaviorSubject, Observable } from 'rxjs';
 
 const themes = ['light', 'dark'] as const;
 export type Theme = typeof themes[number];
@@ -8,15 +7,15 @@ export type Theme = typeof themes[number];
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   private document = inject<Document>(DOCUMENT);
-  private currentThemeState = new BehaviorSubject<Theme>('light');
-  currentTheme: Observable<Theme> = this.currentThemeState.asObservable();
+  private currentThemeState = signal<Theme>('light');
+  currentTheme: Signal<Theme> = this.currentThemeState.asReadonly();
 
   constructor() {
     this.setTheme(this.getThemeFromLocalStorage());
   }
 
   toggleTheme(): void {
-    if (this.currentThemeState.value === 'light') {
+    if (this.currentThemeState() === 'light') {
       this.setTheme('dark');
     } else {
       this.setTheme('light');
@@ -24,7 +23,7 @@ export class ThemeService {
   }
 
   setTheme(theme: Theme): void {
-    this.currentThemeState.next(theme);
+    this.currentThemeState.set(theme);
     if (theme === 'dark') {
       this.document.documentElement.classList.add('dark-mode');
     } else {
