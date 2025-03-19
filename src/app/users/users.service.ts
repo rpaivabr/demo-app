@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
@@ -11,8 +11,7 @@ export type User = {
 
 @Injectable()
 export class UsersService {
-
-  constructor(private httpClient: HttpClient) {}
+  private httpClient = inject(HttpClient);
 
   getUsers(query: string = ''): Observable<User[]> {
     return this.httpClient.get<User[]>(`${API_URL}?name_like=^${query}`);

@@ -1,5 +1,4 @@
-import { Component, DestroyRef, OnInit } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MatIconButton, MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
@@ -8,14 +7,14 @@ import { MatList, MatListItem, MatListItemIcon, MatListItemTitle } from '@angula
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { User, UsersService } from './users.service';
-import { NgFor, NgIf } from '@angular/common';
+import { catchError, finalize, Observable, of, tap } from 'rxjs';
+import { AsyncPipe } from '@angular/common';
 
 @Component({
   selector: 'app-users',
   providers: [UsersService],
   imports: [
-    NgIf,
-    NgFor,
+    AsyncPipe,
     MatProgressBar,
     MatFormField,
     MatLabel,
@@ -30,15 +29,19 @@ import { NgFor, NgIf } from '@angular/common';
     MatListItemTitle,
   ],
   template: `
-    <mat-progress-bar *ngIf="isLoading" mode="query" />
+    @if (isLoading) {
+      <mat-progress-bar mode="query" />
+    }
 
     <main>
       <mat-form-field class="field" appearance="outline">
         <mat-label>Users Search</mat-label>
         <input matInput (input)="handleInput($event)" [value]="query" placeholder="Search...">
-        <button *ngIf="query" matSuffix mat-icon-button aria-label="Clear" (click)="clearQuery()">
-          <mat-icon>close</mat-icon>
-        </button>
+        @if (query) {
+          <button matSuffix mat-icon-button aria-label="Clear" (click)="clearQuery()">
+            <mat-icon>close</mat-icon>
+          </button>
+        }
       </mat-form-field>
 
       <section class="actions">
@@ -48,15 +51,14 @@ import { NgFor, NgIf } from '@angular/common';
       </section>
 
       <mat-list>
-        <ng-container *ngIf="users.length; else empty">
-          <mat-list-item *ngFor="let user of users; trackBy: trackByFn">
+        @for (user of users$ | async; track $index) {
+          <mat-list-item>
             <mat-icon matListItemIcon>person</mat-icon>
             <div matListItemTitle>{{user.name}}</div>
           </mat-list-item>
-        </ng-container>
-        <ng-template #empty>
+        } @empty {
           <div matListItemTitle>Nothing to show</div>
-        </ng-template>
+        }
       </mat-list>
     </main>
   `,
@@ -66,55 +68,51 @@ import { NgFor, NgIf } from '@angular/common';
     .field  { width: 100%; }
     .actions { margin-bottom: 16px; }
   `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class UsersComponent implements OnInit {
+export class UsersComponent {
+  private usersService = inject(UsersService);
+  private snackbar = inject(MatSnackBar);
+
   query: string = '';
+  users$: Observable<User[]> = this.getUsers(this.query);
   users: User[] = [];
   isLoading: boolean = false;
-  trackByFn = (index: number) => index;
-
-  constructor(
-    private usersService: UsersService,
-    private snackbar: MatSnackBar,
-    private destroyRef: DestroyRef,
-  ) {}
-
-  ngOnInit(): void {
-    this.getUsers(this.query);
-  }
 
   handleInput(event: Event) {
     const target = event.target as HTMLInputElement;
     this.query = target.value;
-    this.getUsers(this.query);
+    this.users$ = this.getUsers(this.query);
   }
 
   clearQuery(): void {
     this.query = '';
-    this.getUsers(this.query);
+    this.users$ = this.getUsers(this.query);
   }
 
   reload() {
-    this.getUsers(this.query);
+    this.users$ = this.getUsers(this.query);
   }
 
   addUser() {
     const user = { id: 123, name: 'John Doe' };
     this.users = [user, ...this.users];
+    this.users$ = of(this.users);
   }
 
   clear() {
-    this.users = [];
+    this.users$ = of([]);
   }
 
-  private getUsers(query: string): void {
+  private getUsers(query: string): Observable<User[]> {
     this.isLoading = true;
-    this.usersService.getUsers(query)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: users => this.users = users,
-        error: () => this.snackbar.open('Couldn\'t fetch data...', 'Close'),
-        complete: () => this.isLoading = false,
-      });
+    return this.usersService.getUsers(query).pipe(
+      tap(users => this.users = users),
+      catchError(() => {
+        this.snackbar.open('Couldn\'t fetch data...', 'Close');
+        return [];
+      }),
+      finalize(() => this.isLoading = false),
+    );
   }
 }

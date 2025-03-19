@@ -1,31 +1,21 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Theme, ThemeService } from './shared/theme.service';
 import { HeaderComponent } from './shared/header.component';
-import { Subscription } from 'rxjs';
+import { Observable, startWith } from 'rxjs';
+import { AsyncPipe } from '@angular/common';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, HeaderComponent],
+  imports: [AsyncPipe, RouterOutlet, HeaderComponent],
   template: `
-    <app-header [theme]="theme" (toggle)="toggleTheme()" />
+    <app-header [theme]="(theme$ | async)!" (toggle)="toggleTheme()" />
     <router-outlet />
   `,
 })
-export class AppComponent implements OnInit, OnDestroy {
-  private subscription!: Subscription;
-  theme: Theme = 'light';
-
-  constructor(private themeService: ThemeService) {}
-
-  ngOnInit(): void {
-    this.subscription = this.themeService.currentTheme
-      .subscribe(theme => this.theme = theme);
-  }
-
-  ngOnDestroy(): void {
-    this.subscription.unsubscribe();
-  }
+export class AppComponent {
+  private themeService = inject(ThemeService);
+  theme$: Observable<Theme> = this.themeService.currentTheme;
 
   toggleTheme(): void {
     this.themeService.toggleTheme();

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { BehaviorSubject, Observable } from 'rxjs';
 
@@ -7,10 +7,11 @@ export type Theme = typeof themes[number];
 
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
+  private document = inject<Document>(DOCUMENT);
   private currentThemeState = new BehaviorSubject<Theme>('light');
   currentTheme: Observable<Theme> = this.currentThemeState.asObservable();
 
-  constructor(@Inject(DOCUMENT) private readonly document: Document) {
+  constructor() {
     this.setTheme(this.getThemeFromLocalStorage());
   }
 
