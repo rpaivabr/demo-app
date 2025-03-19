@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
 import { MatIconButton, MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
@@ -6,8 +6,7 @@ import { MatInput } from '@angular/material/input';
 import { MatList, MatListItem, MatListItemIcon, MatListItemTitle } from '@angular/material/list';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { User, UsersService } from './users.service';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { UsersService } from './users.service';
 
 @Component({
   selector: 'app-users',
@@ -71,15 +70,16 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 export class UsersComponent {
   private usersService = inject(UsersService);
   private snackbar = inject(MatSnackBar);
-  private destroyRef = inject(DestroyRef);
 
-  query = signal<string>('');
-  users = signal<User[]>([]);
-  isLoading = signal<boolean>(false);
+  errorEffect = effect(() => {
+    if (this.usersService.error()) {
+      this.snackbar.open('Couldn\'t fetch data...', 'Close');
+    }
+  })
 
-  getUsersEffect = effect(() => {
-    this.getUsers();
-  });
+  query = this.usersService.query;
+  isLoading = this.usersService.isLoading;
+  users = this.usersService.users;
 
   handleInput(event: Event) {
     const target = event.target as HTMLInputElement;
@@ -87,11 +87,12 @@ export class UsersComponent {
   }
 
   clearQuery(): void {
+    this.query.set('');
     this.reload();
   }
 
   reload() {
-    this.getUsers();
+    this.usersService.reload();
   }
 
   addUser() {
@@ -103,15 +104,4 @@ export class UsersComponent {
     this.users.set([]);
   }
 
-  private getUsers(): void {
-    this.users.set([]);
-    this.isLoading.set(true);
-    this.usersService.getUsers(this.query()).pipe(
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe({
-      next: users => this.users.set(users),
-      error: () => this.snackbar.open('Couldn\'t fetch data...', 'Close'),
-      complete: () => this.isLoading.set(false),
-    });
-  }
 }
